@@ -1,15 +1,37 @@
 # xray-compose
 
-Splices X-ray, MRI and ultrasound images into a blocky human silhouette, keeping the hard rectangular tile borders.
+Splices real X-ray, MRI and ultrasound images over a whole-body nuclear bone scan so each tile sits on its matching anatomy. Every tile keeps a hard rectangular border.
+
+![composite](out/composite.png)
 
 ```sh
-pip install pydicom numpy pillow
-make data   # download source images into data/
+pip install idc-index pydicom pylibjpeg pylibjpeg-libjpeg pylibjpeg-openjpeg numpy pillow
+make data   # download the source DICOMs and write data/*.png
 make run    # build the C++ compositor and write out/composite.png
 ```
 
-- `tools/fetch.py` pulls chest X-rays from [ieee8023/covid-chestxray-dataset](https://github.com/ieee8023/covid-chestxray-dataset), plus CR/MRI/ultrasound DICOMs from [pydicom/pydicom-data](https://github.com/pydicom/pydicom-data), and normalises them to 8-bit PNGs.
-- `src/compose.cpp` (C++17, uses the stb headers in `third_party/`) draws a soft speckled body outline and pastes each tile from `layout.txt` as a hard-edged rectangle.
-- `layout.txt` has one tile per line: `file x y w h [sx sy sw sh] [rot90] [border]`. Positions are fractions of the canvas, and the optional source crop is a fraction of the image.
+## How it works
 
-Downloaded images keep their original licenses, so `data/` and `out/` are git-ignored.
+- `tools/fetch.py` pulls specific series from the [NCI Imaging Data Commons](https://imaging.datacommons.cancer.gov/) through `idc-index`:
+  - a whole-body bone scan
+  - CR/DX films of the chest, shoulder, pelvis, lumbar spine, elbow, knee and femur
+  - a coronal brain MRI
+  - a liver ultrasound
+
+  It also pulls a lower-leg CR film from [pydicom-data](https://github.com/pydicom/pydicom-data). Each image is normalised to an 8-bit PNG.
+- `src/compose.cpp` (C++17, with the stb headers in `third_party/`) draws the inverted bone scan as the body. It then pins each tile by landmark: a point in the source image, such as the midpoint between the femoral heads, maps onto the same anatomy on the bone scan, with a given width and rotation.
+- `layout.txt` sets the background and the tiles:
+
+  ```
+  bg   file invert gain gamma x y
+  tile file  sx sy sw sh  ax ay  dx dy  width angle [border]
+  ```
+
+  - `s*`: crop, as fractions of the source image.
+  - `a*`: source landmark, as fractions of the source image.
+  - `d*` and `width`: target position and tile width, as percentages of the 512×1088 bone-scan space.
+  - Tiles are drawn in file order.
+
+## Credits
+
+The IDC images come from TCIA collections CMB-PCA, CMB-MML, CMB-LCA and VAREPOP-APOLLO, licensed CC BY 4.0. The leg film is from pydicom-data.
