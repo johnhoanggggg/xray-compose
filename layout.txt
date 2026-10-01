@@ -1,0 +1,33 @@
+# file              x     y     w     h     sx   sy   sw   sh   rot border
+# head: MRI head slice
+data/mri_02.png     0.40  0.02  0.20  0.125
+# neck: top of a lateral chest film
+data/xray_12.png    0.46  0.145 0.08  0.05  0.30 0.00 0.40 0.15
+# chest: PA chest X-ray
+data/xray_02.png    0.30  0.18  0.40  0.24  0.05 0.05 0.90 0.80
+# shoulders: shoulder MRI (right), mirrored AP film crop (left)
+data/mri_00.png     0.62  0.17  0.18  0.11
+data/xray_06.png    0.20  0.18  0.14  0.10  0.00 0.00 0.40 0.40
+# upper arms
+data/xray_01.png    0.17  0.28  0.09  0.13  0.30 0.00 0.40 0.60
+data/xray_01.png    0.74  0.29  0.09  0.12  0.30 0.00 0.40 0.60
+# forearms: lateral chest films rotated
+data/xray_13.png    0.14  0.41  0.08  0.15  0.20 0.20 0.60 0.60 1
+data/xray_10.png    0.78  0.42  0.08  0.14  0.20 0.20 0.60 0.60 1
+# hands: small MRI slices
+data/mri_03.png     0.12  0.565 0.08  0.06
+data/mri_04.png     0.80  0.565 0.08  0.06
+# abdomen: ultrasound
+data/us_00.png      0.33  0.42  0.34  0.11  0.15 0.10 0.70 0.45
+# pelvis: lower part of AP supine film
+data/xray_03.png    0.33  0.52  0.34  0.10  0.05 0.55 0.90 0.40
+# thighs: lateral chest films rotated (long ribs read like femurs)
+data/xray_08.png    0.35  0.62  0.12  0.16  0.10 0.10 0.80 0.80 3
+data/xray_09.png    0.53  0.62  0.12  0.16  0.10 0.10 0.80 0.80 1
+# knees: MRI slice
+data/mri_01.png     0.37  0.775 0.09  0.05
+# shins + ankles: extremity CR (tib/fib)
+data/xray_01.png    0.365 0.82  0.09  0.15  0.25 0.00 0.50 1.00
+data/xray_01.png    0.545 0.80  0.09  0.17  0.25 0.00 0.50 1.00
+# feet
+data/xray_00.png    0.33  0.96  0.10  0.035 0.10 0.80 0.80 0.20
