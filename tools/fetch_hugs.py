@@ -1,25 +1,19 @@
 #!/usr/bin/env python3
-"""Download the embrace photos and the MediaPipe models that tools/veins.py needs.
+"""Download the embrace photos and the YOLO11 models that tools/veins.py needs.
 
 The photos are from the Open Images V7 validation set: images that human
 raters tagged "Hug" (/m/025s9qt). All of them are Flickr photos licensed
-CC BY 2.0. The models are Google's MediaPipe pose landmarker, BlazeFace face
-detector and multiclass selfie segmenter.
+CC BY 2.0. The models are Ultralytics YOLO11 instance segmentation and pose
+(AGPL-3.0).
 
-    pip install mediapipe opencv-python-headless numpy scipy
+    pip install ultralytics opencv-python-headless numpy scipy scikit-image
 """
 import os, urllib.request
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 OPEN_IMAGES = "https://open-images-dataset.s3.amazonaws.com/validation/{}.jpg"
-MODELS = {
-    "pose_landmarker_heavy.task":
-        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task",
-    "blaze_face_short_range.tflite":
-        "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite",
-    "selfie_multiclass_256x256.tflite":
-        "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite",
-}
+RELEASE = "https://github.com/ultralytics/assets/releases/download/v8.3.0/"
+MODELS = {name: RELEASE + name for name in ("yolo11x-seg.pt", "yolo11x-pose.pt")}
 
 # Open Images id -> (Flickr author, title, Flickr page). All CC BY 2.0.
 HUGS = {
