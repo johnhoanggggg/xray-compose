@@ -14,7 +14,7 @@ hugs:
 	python3 tools/fetch_hugs.py
 
 veins:
-	python3 tools/veins.py
+	python3 tools/veins.py --debug
 
 clean:
 	rm -f compose out/composite.png

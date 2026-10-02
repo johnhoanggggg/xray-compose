@@ -80,7 +80,7 @@ def perceive(models, bgr):
     if rs.masks is None:
         return np.full((h, w), -1, np.int32), []
     masks = [m > 0.5 for m in rs.masks.data.cpu().numpy()]
-    masks = [m for m in masks if m.sum() > 0.02 * m.size]
+    masks = [fill_holes(m) for m in masks if m.sum() > 0.02 * m.size]
     if not masks:
         return np.full((h, w), -1, np.int32), []
     # where masks overlap, a pixel goes to the mask it sits deepest inside
@@ -103,6 +103,16 @@ def perceive(models, bgr):
         score[i, :] = 0
         score[:, j] = 0
     return label, owner
+
+
+def fill_holes(mask, frac=0.03):
+    """Fill holes in a person mask, except big ones (real gaps such as the space inside a hug)."""
+    holes = ndimage.binary_fill_holes(mask) & ~mask
+    lab, n = ndimage.label(holes)
+    if n:
+        sizes = ndimage.sum(holes, lab, range(1, n + 1))
+        mask = mask | np.isin(lab, 1 + np.nonzero(sizes < frac * mask.size)[0])
+    return mask
 
 
 def clean_labels(label, n):
