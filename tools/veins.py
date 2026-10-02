@@ -52,7 +52,8 @@ DATA = os.path.join(HERE, "..", "data")
 OUT = os.path.join(HERE, "..", "out", "veins")
 
 LONG = 1400                    # working resolution, long side in px
-NATURAL_PERIOD = 19.0          # rough stripe period of the labyrinth below on its own grid, in px
+NATURAL_PERIOD = 18.5          # stripe period of the labyrinth below at full diffusion, in grid px
+GRID_PERIOD = 10.0             # the period it is scaled down to on the simulation grid
 FEED, KILL = 0.029, 0.057      # Gray-Scott parameters in the labyrinth regime
 CENTRE_SCALE = 1.3             # centre veins are 30% wider than child veins
 COLORS = [(148, 22, 44), (24, 44, 112), (30, 96, 88), (112, 50, 120)]   # RGB per person
@@ -278,12 +279,14 @@ def runs(mask):
 
 # ---------------------------------------------------------------- reaction-diffusion
 
-def labyrinth(region, pins, nx, ny, aniso, max_steps, log):
+def labyrinth(region, pins, nx, ny, aniso, dscale, max_steps, log):
     """Grow a Gray-Scott labyrinth inside `region` out from `pins`. Returns the B field.
 
     The diffusion operator blends Karl Sims' 9-point Laplacian with the second
     derivative along the local direction (nx, ny), weighted by `aniso`. Extra
-    diffusion along a direction turns the stripes across it. The blend keeps
+    diffusion along a direction turns the stripes across it. Patterns scale
+    with the square root of diffusion, so `dscale` shrinks the period and lets
+    the reaction run on a coarser grid. The blend keeps
     the stencil's centre weight at -1, which keeps the explicit update stable.
     """
     T = lambda a: torch.from_numpy(np.ascontiguousarray(a, np.float32))
@@ -311,7 +314,7 @@ def labyrinth(region, pins, nx, ny, aniso, max_steps, log):
         uxx, uyy, dd1, dd2 = d[:, 0], d[:, 1], d[:, 2], d[:, 3]
         iso = 0.2 * (uxx + uyy) + 0.05 * (dd1 + dd2)
         unn = nxx * uxx + nyy * uyy + nxy * (dd1 - dd2) / 2
-        lap = (1 - aniso) * iso + aniso * 0.5 * unn    # same centre weight as iso, so it stays stable
+        lap = dscale * ((1 - aniso) * iso + aniso * 0.5 * unn)    # centre weight stays <= 1: stable
         abb = A * B * B
         A = (A + lap[0] - abb + FEED * (1 - A)).clamp_(0, 1)
         B = (B + 0.5 * lap[1] + abb - (KILL + FEED) * B).clamp_(0, 1)
@@ -353,7 +356,8 @@ def render(models, path, period, aniso, max_steps, debug, log):
     region = ((plabel >= 0) & (wall == 0)).astype(np.uint8)
 
     # the reaction runs on a grid scaled so its natural period becomes `period` image px
-    g = NATURAL_PERIOD / period
+    g = GRID_PERIOD / period
+    dscale = (GRID_PERIOD / NATURAL_PERIOD) ** 2
     gw, gh = int(round(w * g)), int(round(h * g))
     reg_g = cv2.resize(region, (gw, gh), interpolation=cv2.INTER_NEAREST)
     pins = np.zeros((gh, gw), np.uint8)
@@ -364,10 +368,10 @@ def render(models, path, period, aniso, max_steps, debug, log):
         d = (q[-1] - q[0]) / (np.linalg.norm(q[-1] - q[0]) + 1e-9)
         n = np.array([-d[1], d[0]])
         L = np.linalg.norm(q[-1] - q[0])
-        for t in np.arange(NATURAL_PERIOD / 2, L - NATURAL_PERIOD / 4, NATURAL_PERIOD):
+        for t in np.arange(GRID_PERIOD / 2, L - GRID_PERIOD / 4, GRID_PERIOD):
             c = q[0] + d * t
-            cv2.line(pins, tuple(np.round(c - n * NATURAL_PERIOD).astype(int)),
-                     tuple(np.round(c + n * NATURAL_PERIOD).astype(int)), 1, max(1, int(round(NATURAL_PERIOD / 9))))
+            cv2.line(pins, tuple(np.round(c - n * GRID_PERIOD).astype(int)),
+                     tuple(np.round(c + n * GRID_PERIOD).astype(int)), 1, 1)
     pins &= reg_g
     # unit direction of each part's axis: extra diffusion along it turns the stripes across it
     nxf, nyf = np.zeros((h, w), np.float32), np.zeros((h, w), np.float32)
@@ -383,7 +387,7 @@ def render(models, path, period, aniso, max_steps, debug, log):
     y0, y1, x0, x1 = max(0, ys.min() - 2), ys.max() + 3, max(0, xs.min() - 2), xs.max() + 3
     B = np.zeros((gh, gw), np.float32)
     B[y0:y1, x0:x1] = labyrinth(reg_g[y0:y1, x0:x1], pins[y0:y1, x0:x1], nx[y0:y1, x0:x1], ny[y0:y1, x0:x1],
-                                aniso, max_steps, log)
+                                aniso, dscale, max_steps, log)
     gw, gh = x1 - x0, y1 - y0
     log(f"    labyrinth on a {gw}x{gh} grid took {time.time() - t0:.0f}s")
 
@@ -451,7 +455,7 @@ def join_to_centres(skel, centre_mask, period):
     nb = cv2.filter2D(skel.astype(np.uint8), -1, np.ones((3, 3), np.float32), borderType=cv2.BORDER_CONSTANT)
     ends = skel & (nb == 2)                              # the pixel itself plus one neighbour
     d, (iy, ix) = ndimage.distance_transform_edt(centre_mask == 0, return_indices=True)
-    ys, xs = np.nonzero(ends & (d < period * 1.1))
+    ys, xs = np.nonzero(ends & (d < period * 1.6))
     for y, x in zip(ys, xs):
         cv2.line(links, (int(x), int(y)), (int(ix[y, x]), int(iy[y, x])), 1, 1)
     return links
