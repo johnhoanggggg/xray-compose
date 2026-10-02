@@ -406,7 +406,7 @@ def render(models, path, period, aniso, max_steps, debug, log):
     vw = period / 2
     cw = vw * CENTRE_SCALE
     log(f"    grown period {period:.1f}px: child veins {vw:.1f}px, centre veins {cw:.1f}px")
-    links = join_to_centres(skel, centre_mask, period)
+    links = join_to_centres(skel, centre_mask, veins, period)
 
     # each pixel takes the colour of the person it belongs to (or the nearest one)
     person_of_part = np.array([p.person for p in parts] + [0])
@@ -447,8 +447,14 @@ def drop_short(skel, minlen):
     return keep[lab]
 
 
-def join_to_centres(skel, centre_mask, period):
-    """Short connectors from child-vein ends that stop next to a centre vein onto that vein."""
+def join_to_centres(skel, centre_mask, veins, period):
+    """Branch the child veins off the centre veins.
+
+    Child-vein ends that stop next to a centre vein are joined onto it. Then,
+    every two periods along each centre vein, alternating sides, a short
+    branch runs out at right angles to the first child vein it meets.
+    """
+    h, w = skel.shape
     links = np.zeros(skel.shape, np.uint8)
     if not centre_mask.any():
         return links
@@ -458,6 +464,21 @@ def join_to_centres(skel, centre_mask, period):
     ys, xs = np.nonzero(ends & (d < period * 1.6))
     for y, x in zip(ys, xs):
         cv2.line(links, (int(x), int(y)), (int(ix[y, x]), int(iy[y, x])), 1, 1)
+    hit = cv2.dilate(skel.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+    for pts, _ in veins:
+        L = np.linalg.norm(pts[-1] - pts[0])
+        dvec = (pts[-1] - pts[0]) / (L + 1e-9)
+        n = np.array([-dvec[1], dvec[0]])
+        for i, t in enumerate(np.arange(period, L - period / 2, period * 2)):
+            c = pts[0] + dvec * t
+            side = n if i % 2 == 0 else -n
+            for r in np.arange(period * 0.3, period * 1.6, 0.5):
+                q = np.round(c + side * r).astype(int)
+                if not (0 <= q[0] < w and 0 <= q[1] < h):
+                    break
+                if hit[q[1], q[0]]:
+                    cv2.line(links, tuple(np.round(c).astype(int)), (int(q[0]), int(q[1])), 1, 1)
+                    break
     return links
 
 
