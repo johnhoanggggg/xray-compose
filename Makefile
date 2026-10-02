@@ -10,7 +10,13 @@ data:
 run: compose
 	mkdir -p out && ./compose layout.txt out/composite.png
 
+hugs:
+	python3 tools/fetch_hugs.py
+
+veins:
+	python3 tools/veins.py
+
 clean:
 	rm -f compose out/composite.png
 
-.PHONY: data run clean
+.PHONY: data run hugs veins clean
